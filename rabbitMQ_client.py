@@ -4,11 +4,15 @@ import time
 
 import pika as pika
 
+topics_list = [
+    "status_response",
+    "containers_list_response"
+]
+
 
 def broker_callback(channel, method, properties, body):
-    if method.routing_key == "status_response":
-        response = str(json.loads(body.decode()))
-        print("Received command on topic \"status\", body: " + response)
+    response = str(json.loads(body.decode()))
+    print("Received command on topic "+method.routing_key+", body: " + response)
 
 
 def initialize_communication():
@@ -18,7 +22,8 @@ def initialize_communication():
     channel.exchange_declare(exchange='topics', exchange_type='topic')
     result = channel.queue_declare('')
     queue_name = result.method.queue
-    channel.queue_bind(exchange='topics', queue=queue_name, routing_key='status_response')
+    for topic in topics_list:
+        channel.queue_bind(exchange='topics', queue=queue_name, routing_key=topic)
     channel.basic_consume(queue=queue_name, on_message_callback=broker_callback, auto_ack=True)
     channel.start_consuming()
 
@@ -56,6 +61,10 @@ def set_monitoring_period(period):
 
 def get_container_status(name):
     send_command("status", name)
+
+
+def get_containers_list():
+    send_command("container_list", "-")
 
 
 broker_thread = threading.Thread(target=initialize_communication)

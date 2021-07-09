@@ -8,15 +8,17 @@ import time
 
 client = docker.from_env()
 list = client.containers.list(all=True)
+hostname = socket.gethostname()
 threshold = 60.0
 ping_retries = 3
 monitoring_period = 2
-container_status_data = {}  # list of monitored containers
+monitored_containers_status = {}  # list of monitored containers
 general_topics_list = [
     "set_threshold",
     "set_ping_retries",
     "set_monitoring_period",
-    "status"
+    "status",
+    "container_list"
 ]
 personal_topics_list = [
     "add_container",
@@ -25,7 +27,7 @@ personal_topics_list = [
 
 
 def monitor():
-    for name in container_status_data.keys():
+    for name in monitored_containers_status.keys():
         cont = client.containers.get(name)
         if cont is None:
             continue
@@ -34,16 +36,16 @@ def monitor():
         running = cont.attrs.get("State").get("Running")
         print("Name: " + name + "; Running: " + str(running) + ".")
         # status information
-        container_status_data[name]["running"] = running
-        container_status_data[name]["started_at"] = cont.attrs.get("State").get("StartedAt")
-        container_status_data[name]["restart_count"] = cont.attrs.get("RestartCount")
-        container_status_data[name]["image"] = cont.attrs.get("Config").get("Image")
-        container_status_data[name]["ip"] = p_address
+        monitored_containers_status[name]["running"] = running
+        monitored_containers_status[name]["started_at"] = cont.attrs.get("State").get("StartedAt")
+        monitored_containers_status[name]["restart_count"] = cont.attrs.get("RestartCount")
+        monitored_containers_status[name]["image"] = cont.attrs.get("Config").get("Image")
+        monitored_containers_status[name]["ip"] = p_address
         if running:
             # print(ping_ip(p_address, 3))
             pres = ping('127.0.0.1', verbose=False, count=ping_retries)
             ploss = pres.packet_loss
-            container_status_data[name]["packet_loss"] = ploss
+            monitored_containers_status[name]["packet_loss"] = ploss
             if not pres.success():
                 print("Ping failed!")
                 print("Restarting container.")
@@ -78,7 +80,7 @@ def listen_on_personal_queue():
         pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
     channel = connection.channel()
     channel.exchange_declare(exchange='topics', exchange_type='topic')
-    result = channel.queue_declare(socket.gethostname())
+    result = channel.queue_declare(hostname)
     queue_name = result.method.queue
     for topic in personal_topics_list:
         channel.queue_bind(exchange='topics', queue=queue_name, routing_key=topic)
@@ -98,7 +100,9 @@ def general_broker_callback(channel, method, properties, body):
     elif topic == "set_monitoring_period":
         set_monitoring_period(message)
     elif topic == "status":
-        get_container_status(message)
+        get_monitored_container_status(message)
+    elif topic == "container_list":
+        get_all_containers()
 
 
 def personal_broker_callback(channel, method, properties, body):
@@ -111,30 +115,45 @@ def personal_broker_callback(channel, method, properties, body):
         remove_container(message)
 
 
-def get_container_status(container_name):
+def get_monitored_container_status(container_name):
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
     channel = connection.channel()
     channel.exchange_declare(exchange="topics", exchange_type="topic")
     routing_key = "status_response"
     if container_name == "all":
-        message = json.dumps(container_status_data).encode()
-    elif container_name in container_status_data:
-        message = json.dumps(container_status_data[container_name]).encode()
+        message = json.dumps(monitored_containers_status).encode()
+    elif container_name in monitored_containers_status:
+        message = json.dumps(monitored_containers_status[container_name]).encode()
     else:
         message = json.dumps({"error": "Container not found"}).encode()
     channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
     connection.close()
 
 
+def get_all_containers():
+    names = []
+    container_list = client.containers.list()
+    for c in container_list:
+        names.append(hostname + c.attrs.get("Name"))
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
+    channel = connection.channel()
+    channel.exchange_declare(exchange="topics", exchange_type="topic")
+    routing_key = "containers_list_response"
+    message = json.dumps(names).encode()
+    channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
+    connection.close()
+
+
 def add_container(container_name):
-    if container_name not in container_status_data:
-        container_status_data[container_name] = {}
+    if container_name not in monitored_containers_status:
+        monitored_containers_status[hostname + "/" + container_name] = {}
 
 
 def remove_container(container_name):
-    if container_name in container_status_data:
-        del container_status_data[container_name]
+    if container_name in monitored_containers_status:
+        del monitored_containers_status[container_name]
 
 
 def set_threshold(th):
