@@ -28,13 +28,14 @@ personal_topics_list = [
 
 def monitor():
     for name in monitored_containers_status.keys():
-        cont = client.containers.get(name)
+        local_name = monitored_containers_status[name]["local_name"]
+        cont = client.containers.get(local_name)
         if cont is None:
             continue
         cont.reload()
         p_address = cont.attrs['NetworkSettings']['IPAddress']
         running = cont.attrs.get("State").get("Running")
-        print("Name: " + name + "; Running: " + str(running) + ".")
+        print("Name: " + local_name + "; Running: " + str(running) + ".")
         # status information
         monitored_containers_status[name]["running"] = running
         monitored_containers_status[name]["started_at"] = cont.attrs.get("State").get("StartedAt")
@@ -43,21 +44,22 @@ def monitor():
         monitored_containers_status[name]["ip"] = p_address
         if running:
             # print(ping_ip(p_address, 3))
-            pres = ping('127.0.0.1', verbose=False, count=ping_retries)
+            pres = ping(p_address, verbose=False, count=ping_retries)
             ploss = pres.packet_loss
             monitored_containers_status[name]["packet_loss"] = ploss
             if not pres.success():
                 print("Ping failed!")
                 print("Restarting container.")
                 cont.restart()
-            elif ploss > threshold:
-                print("Packet Loss: " + str(ploss) + ".")
+            elif ploss*100 > threshold:
+                print("Packet Loss: " + str(ploss*100) + " %")
+                print("Restarting container.")
                 cont.restart()
             else:
                 print("Healthy container!")
-                print("Packet Loss: " + str(ploss) + " %")
+                print("Packet Loss: " + str(ploss*100) + " %")
         else:
-            print(cont.attrs.get("Name") + " is down!")
+            print(local_name + " is down!")
             cont.restart()
 
 
@@ -148,7 +150,7 @@ def get_all_containers():
 
 def add_container(container_name):
     if container_name not in monitored_containers_status:
-        monitored_containers_status[hostname + "/" + container_name] = {}
+        monitored_containers_status[hostname + "/" + container_name] = {"local_name": container_name}
 
 
 def remove_container(container_name):
@@ -180,9 +182,11 @@ while True:
     try:
         monitor()
         time.sleep(monitoring_period)
-    except:
+    except Exception as e:
         time.sleep(monitoring_period)
+        print(str(e))
         continue
+
 
 if __name__ == '__main__':
     client = docker.from_env()
