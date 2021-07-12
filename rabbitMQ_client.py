@@ -29,11 +29,11 @@ def initialize_communication():
 
 
 def send_command(topic, message, queue=""):
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
     channel = connection.channel()
     if not queue == "":
-        channel.queue_declare(queue)
+        channel.queue_declare(queue=queue)
+        topic = queue+topic
     channel.exchange_declare(exchange="topics", exchange_type="topic")
     channel.basic_publish(exchange="topics", routing_key=topic, body=message.encode())
     connection.close()

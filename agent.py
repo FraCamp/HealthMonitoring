@@ -29,7 +29,11 @@ personal_topics_list = [
 def monitor():
     for name in monitored_containers_status.keys():
         local_name = monitored_containers_status[name]["local_name"]
-        cont = client.containers.get(local_name)
+        try:
+            print(local_name)
+            cont = client.containers.get(local_name)
+        except:
+            continue
         if cont is None:
             continue
         cont.reload()
@@ -82,11 +86,11 @@ def listen_on_personal_queue():
         pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
     channel = connection.channel()
     channel.exchange_declare(exchange='topics', exchange_type='topic')
-    result = channel.queue_declare(hostname)
-    queue_name = result.method.queue
+    channel.queue_declare(hostname)
     for topic in personal_topics_list:
-        channel.queue_bind(exchange='topics', queue=queue_name, routing_key=topic)
-    channel.basic_consume(queue=queue_name, on_message_callback=personal_broker_callback, auto_ack=True)
+        print(hostname+topic)
+        channel.queue_bind(exchange='topics', queue=hostname, routing_key=hostname+topic)
+    channel.basic_consume(queue=hostname, on_message_callback=personal_broker_callback, auto_ack=True)
     # new thread because start_consuming() is blocking
     threading.Thread(target=channel.start_consuming).start()
 
@@ -111,9 +115,9 @@ def personal_broker_callback(channel, method, properties, body):
     message = body.decode()
     topic = method.routing_key
     print("Personal callback: Received command on topic " + topic + ", body: " + message)
-    if topic == "add_container":
+    if topic == hostname + "add_container":
         add_container(message)
-    elif topic == "remove_container":
+    elif topic == hostname + "remove_container":
         remove_container(message)
 
 
@@ -149,13 +153,15 @@ def get_all_containers():
 
 
 def add_container(container_name):
-    if container_name not in monitored_containers_status:
-        monitored_containers_status[hostname + "/" + container_name] = {"local_name": container_name}
+    composite_name = hostname + "/" + container_name
+    if composite_name not in monitored_containers_status:
+        monitored_containers_status[composite_name] = {"local_name": container_name}
 
 
 def remove_container(container_name):
-    if container_name in monitored_containers_status:
-        del monitored_containers_status[container_name]
+    composite_name = hostname + "/" + container_name
+    if composite_name in monitored_containers_status:
+        del monitored_containers_status[composite_name]
 
 
 def set_threshold(th):
@@ -176,18 +182,14 @@ def set_monitoring_period(period):
         monitoring_period = int(period)
 
 
-listen_on_general_queue()
-listen_on_personal_queue()
-while True:
-    try:
-        monitor()
-        time.sleep(monitoring_period)
-    except Exception as e:
-        time.sleep(monitoring_period)
-        print(str(e))
-        continue
-
-
 if __name__ == '__main__':
-    client = docker.from_env()
-    print(client.containers.list())
+    listen_on_general_queue()
+    listen_on_personal_queue()
+    while True:
+        try:
+            monitor()
+            time.sleep(monitoring_period)
+        except Exception as e:
+            time.sleep(monitoring_period)
+            print(str(e))
+            continue
