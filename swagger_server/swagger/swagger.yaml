@@ -1,0 +1,164 @@
+---
+swagger: "2.0"
+info:
+  version: "1.0.0"
+  title: "Swagger Health Monitoring"
+host: "172.16.3.182:8080"
+tags:
+- name: "container"
+- name: "config"
+schemes:
+- "http"
+paths:
+  /container:
+    get:
+      tags:
+      - "container"
+      operationId: "get_containers_list"
+      produces:
+      - "application/json"
+      parameters: []
+      responses:
+        "200":
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Container"
+      x-swagger-router-controller: "swagger_server.controllers.container_controller"
+  /container/{name}:
+    post:
+      tags:
+      - "container"
+      operationId: "add_container"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "name"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "Successful operation"
+        "400":
+          description: "Invalid name"
+      x-swagger-router-controller: "swagger_server.controllers.container_controller"
+    delete:
+      tags:
+      - "container"
+      operationId: "remove_container"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - name: "name"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "Successful operation"
+        "400":
+          description: "Invalid name"
+      x-swagger-router-controller: "swagger_server.controllers.container_controller"
+  /container/status:
+    get:
+      tags:
+      - "container"
+      operationId: "get_monitored_containers_status"
+      produces:
+      - "application/json"
+      parameters: []
+      responses:
+        "200":
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Container"
+      x-swagger-router-controller: "swagger_server.controllers.container_controller"
+  /config:
+    get:
+      tags:
+      - "config"
+      operationId: "get_configuration"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters: []
+      responses:
+        "200":
+          description: "Successful operation"
+      x-swagger-router-controller: "swagger_server.controllers.config_controller"
+    put:
+      tags:
+      - "config"
+      operationId: "update_configuration"
+      consumes:
+      - "application/json"
+      - "application/xml"
+      produces:
+      - "application/xml"
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        required: true
+        schema:
+          $ref: "#/definitions/Config"
+      responses:
+        "200":
+          description: "Successful operation"
+        "405":
+          description: "Validation exception"
+      x-swagger-router-controller: "swagger_server.controllers.config_controller"
+definitions:
+  Config:
+    type: "object"
+    properties:
+      threshold:
+        type: "number"
+        format: "double"
+      ping-retries:
+        type: "integer"
+        format: "int32"
+      monitoring-period:
+        type: "integer"
+        format: "int32"
+    example:
+      ping-retries: 6
+      threshold: 0.80082819046101150206595775671303272247314453125
+      monitoring-period: 1
+  Container:
+    type: "object"
+    required:
+    - "name"
+    properties:
+      name:
+        type: "string"
+      monitored:
+        type: "boolean"
+      running:
+        type: "boolean"
+      started_at:
+        type: "string"
+      restart_count:
+        type: "integer"
+        format: "int32"
+      image:
+        type: "string"
+      ip:
+        type: "string"
+      packet-loss:
+        type: "string"
+    example:
+      running: true
+      image: "image"
+      restart_count: 0
+      packet-loss: "packet-loss"
+      ip: "ip"
+      name: "name"
+      started_at: "started_at"
+      monitored: true

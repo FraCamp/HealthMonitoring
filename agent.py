@@ -9,6 +9,7 @@ import time
 client = docker.from_env()
 list = client.containers.list(all=True)
 hostname = socket.gethostname()
+print(hostname)
 threshold = 60.0
 ping_retries = 3
 monitoring_period = 2
@@ -35,6 +36,7 @@ def monitor():
         except:
             continue
         if cont is None:
+            print("container is none")
             continue
         cont.reload()
         p_address = cont.attrs['NetworkSettings']['IPAddress']
@@ -78,6 +80,7 @@ def listen_on_general_queue():
         channel.queue_bind(exchange='topics', queue=queue_name, routing_key=topic)
     channel.basic_consume(queue=queue_name, on_message_callback=general_broker_callback, auto_ack=True)
     # new thread because start_consuming() is blocking
+    print("channel queue = " + queue_name)
     threading.Thread(target=channel.start_consuming).start()
 
 

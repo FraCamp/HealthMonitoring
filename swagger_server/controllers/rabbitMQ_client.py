@@ -1,13 +1,17 @@
 import json
 import threading
 import time
-
+import uuid
 import pika as pika
+
+HOSTS = 3
 
 topics_list = [
     "status_response",
     "containers_list_response"
 ]
+
+containers_list_responses = {}
 
 
 def broker_callback(channel, method, properties, body):
@@ -64,18 +68,10 @@ def get_container_status(name):
 
 
 def get_containers_list():
-    send_command("container_list", "-")
+    request_uuid = str(uuid.uuid4())
+    containers_list_responses[uuid] = []
+    send_command("container_list", request_uuid)
 
 
 broker_thread = threading.Thread(target=initialize_communication)
 broker_thread.start()
-
-add_container("dazzling_spence", "datanode1")
-time.sleep(2)
-add_container("elated_mcnulty", "datanode1")
-time.sleep(2)
-remove_container("dazzling_spence", "datanode1")
-time.sleep(1)
-set_monitoring_period(10)
-time.sleep(1)
-get_container_status("all")
