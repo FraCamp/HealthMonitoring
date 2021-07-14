@@ -38,7 +38,16 @@ def get_containers_list():  # noqa: E501
 
     :rtype: List[Container]
     """
-    return 'do some magic!'
+    result = rabbitMQ_client.get_containers_list()
+    if result is None:
+        return Response(
+            status=500
+        )
+    else:
+        return Response(
+            result,
+            status=200
+        )
 
 
 def get_monitored_containers_status():  # noqa: E501
@@ -49,8 +58,43 @@ def get_monitored_containers_status():  # noqa: E501
 
     :rtype: List[Container]
     """
-    return 'do some magic!'
+    result = rabbitMQ_client.get_container_status()
+    if result is None:
+        return Response(
+            status=500
+        )
+    else:
+        return Response(
+            result,
+            status=200
+        )
 
+def get_monitored_container_status(name):  # noqa: E501
+    """get_monitored_container_status
+
+     # noqa: E501
+
+    :param name:
+    :type name: str
+
+    :rtype: Container
+    """
+    splitted = name.split("/", 2)
+    if len(splitted) != 2:
+        return Response(
+            status=400
+        )
+    hostname = splitted[0]
+    container = splitted[1]
+    result = rabbitMQ_client.get_container_status(container, hostname)
+    if result is None:
+        return Response(
+            status=404
+        )
+    return Response(
+        result,
+        status=200
+    )
 
 def remove_container(name):  # noqa: E501
     """remove_container

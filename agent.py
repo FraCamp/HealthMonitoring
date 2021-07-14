@@ -18,12 +18,13 @@ general_topics_list = [
     "set_threshold",
     "set_ping_retries",
     "set_monitoring_period",
-    "status",
+    "all_containers_status",
     "container_list"
 ]
 personal_topics_list = [
     "add_container",
     "remove_container",
+    "container_status"
 ]
 
 
@@ -99,7 +100,10 @@ def listen_on_personal_queue():
 
 
 def general_broker_callback(channel, method, properties, body):
-    message = body.decode()
+    if body is None:
+        message = None
+    else:
+        message = json.loads(body.decode())
     topic = method.routing_key
     print("General callback: Received command on topic " + topic + ", body: " + message)
     if topic == "set_threshold":
@@ -108,49 +112,68 @@ def general_broker_callback(channel, method, properties, body):
         set_ping_retries(message)
     elif topic == "set_monitoring_period":
         set_monitoring_period(message)
-    elif topic == "status":
+    elif topic == "all_containers_status":
         get_monitored_container_status(message)
     elif topic == "container_list":
-        get_all_containers()
+        get_all_containers(message)
 
 
 def personal_broker_callback(channel, method, properties, body):
-    message = body.decode()
+    if body is None:
+        message = None
+    else:
+        message = json.loads(body.decode())
     topic = method.routing_key
     print("Personal callback: Received command on topic " + topic + ", body: " + message)
     if topic == hostname + "add_container":
         add_container(message)
     elif topic == hostname + "remove_container":
         remove_container(message)
+    elif topic == "container_status":
+        get_monitored_container_status(message)
 
 
-def get_monitored_container_status(container_name):
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
+def get_monitored_container_status(request):
+    if "token" in request:
+        uuid = request["token"]
+        if "container" in request:
+            container_name = request["container"]
+            # broker ip address --> node manager
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host='172.16.3.170'))
+            channel = connection.channel()
+            channel.exchange_declare(exchange="topics", exchange_type="topic")
+            routing_key = "status_response"
+            if container_name in monitored_containers_status:
+                result = {"token": uuid, "container": monitored_containers_status[container_name]}
+                message = json.dumps(result).encode()
+            else:
+                message = json.dumps({"container": None, "token": uuid}).encode()
+            channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
+            connection.close()
+
+def get_all_monitored_containers_status(uuid):
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host='172.16.3.170'))
     channel = connection.channel()
     channel.exchange_declare(exchange="topics", exchange_type="topic")
     routing_key = "status_response"
-    if container_name == "all":
-        message = json.dumps(monitored_containers_status).encode()
-    elif container_name in monitored_containers_status:
-        message = json.dumps(monitored_containers_status[container_name]).encode()
-    else:
-        message = json.dumps({"error": "Container not found"}).encode()
+    result = {"token": uuid, "containers": monitored_containers_status}
+    message = json.dumps(result).encode()
     channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
     connection.close()
 
-
-def get_all_containers():
+def get_all_containers(uuid):
     names = []
+    result = {"token": uuid}
     container_list = client.containers.list()
     for c in container_list:
         names.append(hostname + c.attrs.get("Name"))
+    result["containers"] = names
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
     channel = connection.channel()
     channel.exchange_declare(exchange="topics", exchange_type="topic")
     routing_key = "containers_list_response"
-    message = json.dumps(names).encode()
+    message = json.dumps(result).encode()
     channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
     connection.close()
 
