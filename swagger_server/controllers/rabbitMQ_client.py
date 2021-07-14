@@ -1,4 +1,5 @@
 import json
+import sys
 import threading
 import time
 import uuid
@@ -19,7 +20,7 @@ status_responses_lock = threading.Lock()
 
 def broker_callback(channel, method, properties, body):
     topic = method.routing_key
-    response = str(json.loads(body.decode()))
+    response = json.loads(body.decode())
     if topic == "containers_list_response":
         if "token" in response:
             uuid = response["token"]
@@ -34,7 +35,7 @@ def broker_callback(channel, method, properties, body):
                     status_responses[uuid].push(response["containers"])
                 elif "container" in response and uuid in status_responses:
                     status_responses[uuid].push(response["container"])
-    print("Received command on topic "+method.routing_key+", body: " + response)
+    print("Received command on topic "+method.routing_key+", body: " + str(response), file=sys.stderr)
 
 
 def initialize_communication():
@@ -83,11 +84,12 @@ def set_monitoring_period(period):
 
 
 def get_container_status(container_name=None, hostname=None):
-    print(container_name + " " + hostname)
+    if container_name is not None and hostname is not None:
+        print(container_name + " " + hostname, file=sys.stderr)
     request_uuid = str(uuid.uuid4())
     status_responses[uuid] = []
     if hostname is None:
-        print("sending command all containers status")
+        print("sending command all containers status", file=sys.stderr)
         send_command("all_containers_status", request_uuid)
         start = time.time()
         while True:
@@ -96,7 +98,7 @@ def get_container_status(container_name=None, hostname=None):
                     break
             end = time.time()
             if (end - start) > TIMEOUT:
-                print("Timeout scaduto " + str(start) + " " + str(end))
+                print("Timeout scaduto " + str(start) + " " + str(end), file=sys.stderr)
                 break
             time.sleep(0.1)
         with status_responses_lock:
@@ -113,7 +115,7 @@ def get_container_status(container_name=None, hostname=None):
         if container_name is None:
             return None
         request = {"token": request_uuid, "container": container_name}
-        print("sending command container status")
+        print("sending command container status", file=sys.stderr)
         send_command("container_status", request, hostname)
         start = time.time()
 
@@ -123,7 +125,7 @@ def get_container_status(container_name=None, hostname=None):
                     break
             end = time.time()
             if (end - start) > TIMEOUT:
-                print("Timeout scaduto " + str(start) + " " + str(end))
+                print("Timeout scaduto " + str(start) + " " + str(end), file=sys.stderr)
                 break
             time.sleep(0.1)
         with status_responses_lock:

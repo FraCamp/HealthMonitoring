@@ -105,7 +105,7 @@ def general_broker_callback(channel, method, properties, body):
     else:
         message = json.loads(body.decode())
     topic = method.routing_key
-    print("General callback: Received command on topic " + topic + ", body: " + message)
+    print("General callback: Received command on topic " + topic + ", body: " + str(message))
     if topic == "set_threshold":
         set_threshold(message)
     elif topic == "set_ping_retries":
@@ -113,7 +113,7 @@ def general_broker_callback(channel, method, properties, body):
     elif topic == "set_monitoring_period":
         set_monitoring_period(message)
     elif topic == "all_containers_status":
-        get_monitored_container_status(message)
+        get_all_monitored_containers_status(message)
     elif topic == "container_list":
         get_all_containers(message)
 
@@ -124,7 +124,7 @@ def personal_broker_callback(channel, method, properties, body):
     else:
         message = json.loads(body.decode())
     topic = method.routing_key
-    print("Personal callback: Received command on topic " + topic + ", body: " + message)
+    print("Personal callback: Received command on topic " + topic + ", body: " + str(message))
     if topic == hostname + "add_container":
         add_container(message)
     elif topic == hostname + "remove_container":
@@ -149,6 +149,7 @@ def get_monitored_container_status(request):
             else:
                 message = json.dumps({"container": None, "token": uuid}).encode()
             channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
+            print(str(message))
             connection.close()
 
 def get_all_monitored_containers_status(uuid):
@@ -159,6 +160,7 @@ def get_all_monitored_containers_status(uuid):
     result = {"token": uuid, "containers": monitored_containers_status}
     message = json.dumps(result).encode()
     channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
+    print(str(message))
     connection.close()
 
 def get_all_containers(uuid):
@@ -166,7 +168,7 @@ def get_all_containers(uuid):
     result = {"token": uuid}
     container_list = client.containers.list()
     for c in container_list:
-        names.append(hostname + c.attrs.get("Name"))
+        names.append(hostname + c.attrs.get("Name").replace("/", "-"))
     result["containers"] = names
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
@@ -179,13 +181,13 @@ def get_all_containers(uuid):
 
 
 def add_container(container_name):
-    composite_name = hostname + "/" + container_name
+    composite_name = hostname + "-" + container_name
     if composite_name not in monitored_containers_status:
         monitored_containers_status[composite_name] = {"local_name": container_name}
 
 
 def remove_container(container_name):
-    composite_name = hostname + "/" + container_name
+    composite_name = hostname + "-" + container_name
     if composite_name in monitored_containers_status:
         del monitored_containers_status[composite_name]
 

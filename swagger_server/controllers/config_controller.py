@@ -1,5 +1,5 @@
 import connexion
-import rabbitMQ_client
+import swagger_server.controllers.rabbitMQ_client as rabbitMQ_client
 import six
 from flask import Response
 

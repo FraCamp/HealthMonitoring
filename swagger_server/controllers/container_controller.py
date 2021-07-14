@@ -1,7 +1,9 @@
+import sys
+
 import connexion
 import six
 from flask import Response
-import rabbitMQ_client
+import swagger_server.controllers.rabbitMQ_client as rabbitMQ_client
 
 from swagger_server.models.container import Container  # noqa: E501
 from swagger_server import util
@@ -17,7 +19,7 @@ def add_container(name):  # noqa: E501
 
     :rtype: None
     """
-    splitted = name.split("/", 2)
+    splitted = name.split("-", 2)
     if len(splitted) != 2:
         return Response(
             status=400
@@ -79,13 +81,15 @@ def get_monitored_container_status(name):  # noqa: E501
 
     :rtype: Container
     """
-    splitted = name.split("/", 2)
+    print(name, file=sys.stderr)
+    splitted = name.split("-", 2)
     if len(splitted) != 2:
         return Response(
             status=400
         )
     hostname = splitted[0]
     container = splitted[1]
+    print(hostname + " " + container, file=sys.stderr)
     result = rabbitMQ_client.get_container_status(container, hostname)
     if result is None:
         return Response(
@@ -106,7 +110,7 @@ def remove_container(name):  # noqa: E501
 
     :rtype: None
     """
-    splitted = name.split("/", 2)
+    splitted = name.split("-", 2)
     if len(splitted) != 2:
         return Response(
             status=400
