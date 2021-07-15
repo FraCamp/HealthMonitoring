@@ -25,8 +25,31 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/Container"
+        "500":
+          description: "No response"
       x-swagger-router-controller: "swagger_server.controllers.container_controller"
   /container/{name}:
+    get:
+      tags:
+      - "container"
+      operationId: "get_monitored_container_status"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "name"
+        in: "path"
+        required: true
+        type: "string"
+      responses:
+        "200":
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Container"
+        "400":
+          description: "Invalid name"
+        "404":
+          description: "Container not found"
+      x-swagger-router-controller: "swagger_server.controllers.container_controller"
     post:
       tags:
       - "container"
@@ -78,6 +101,8 @@ paths:
             type: "array"
             items:
               $ref: "#/definitions/Container"
+        "500":
+          description: "No response"
       x-swagger-router-controller: "swagger_server.controllers.container_controller"
   /config:
     get:
