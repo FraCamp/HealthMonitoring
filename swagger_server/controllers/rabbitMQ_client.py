@@ -5,18 +5,22 @@ import time
 import uuid
 import pika as pika
 
-HOSTS = 1
+HOSTS = 3
 TIMEOUT = 4
 
 topics_list = [
     "status_response",
-    "containers_list_response"
+    "containers_list_response",
+    "config_response"
 ]
 
 containers_list_responses = {}
 status_responses = {}
+config_responses = {}
 containers_list_responses_lock = threading.Lock()
 status_responses_lock = threading.Lock()
+config_responses_lock = threading.Lock()
+
 
 def broker_callback(channel, method, properties, body):
     topic = method.routing_key
@@ -26,7 +30,8 @@ def broker_callback(channel, method, properties, body):
             uuid = response["token"]
             with containers_list_responses_lock:
                 if "containers" in response and uuid in containers_list_responses:
-                    print("Adding containers to dictionary, containers: " + str(response["containers"]), file=sys.stderr)
+                    print("Adding containers to dictionary, containers: " + str(response["containers"]),
+                          file=sys.stderr)
                     containers_list_responses[uuid].append(response["containers"])
                     print("dictionary: " + str(containers_list_responses), file=sys.stderr)
     if topic == "status_response":
@@ -39,7 +44,16 @@ def broker_callback(channel, method, properties, body):
                     status_responses[uuid].append(values_list)
                 elif "container" in response and uuid in status_responses:
                     status_responses[uuid].append(response["container"])
-    print("Received command on topic "+method.routing_key+", body: " + str(response), file=sys.stderr)
+    if topic == "config_response":
+        if "token" in response:
+            uuid = response["token"]
+            with config_responses_lock:
+                if "config" in response and uuid in config_responses:
+                    print("Adding containers to dictionary, containers: " + str(response["config"]),
+                          file=sys.stderr)
+                    config_responses[uuid].append(response["config"])
+                    print("dictionary: " + str(config_responses), file=sys.stderr)
+    print("Received command on topic " + method.routing_key + ", body: " + str(response), file=sys.stderr)
 
 
 def initialize_communication():
@@ -61,7 +75,7 @@ def send_command(topic, message, queue=""):
     channel = connection.channel()
     if not queue == "":
         channel.queue_declare(queue=queue)
-        topic = queue+topic
+        topic = queue + topic
     channel.exchange_declare(exchange="topics", exchange_type="topic")
     channel.basic_publish(exchange="topics", routing_key=topic, body=json.dumps(message).encode())
     connection.close()
@@ -170,6 +184,37 @@ def get_containers_list():
             for x in containers_list_responses[request_uuid]:
                 result = result + x
             del containers_list_responses[request_uuid]
+            print("result " + str(result), file=sys.stderr)
+            return result
+
+
+def get_configuration():
+    request_uuid = str(uuid.uuid4())
+    config_responses[request_uuid] = []
+    send_command("config", request_uuid)
+    start = time.time()
+    end = time.time()
+    while True:
+        with config_responses_lock:
+            if len(config_responses[request_uuid]) == HOSTS:
+                break
+        end = time.time()
+        if (end - start) > TIMEOUT:
+            break
+        time.sleep(0.1)
+    if (end - start) > TIMEOUT:
+        print("timeout scaduto", file=sys.stderr)
+    with config_responses_lock:
+        print("dictionary: " + str(config_responses), file=sys.stderr)
+        print("len: " + str(len(config_responses)), file=sys.stderr)
+        if len(config_responses[request_uuid]) == 0:
+            del config_responses[request_uuid]
+            return None
+        else:
+            result = []
+            for x in config_responses[request_uuid]:
+                result.append(x)
+            del config_responses[request_uuid]
             print("result " + str(result), file=sys.stderr)
             return result
 

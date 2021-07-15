@@ -1,3 +1,5 @@
+import json
+
 import connexion
 import swagger_server.controllers.rabbitMQ_client as rabbitMQ_client
 import six
@@ -15,8 +17,15 @@ def get_configuration():  # noqa: E501
 
     :rtype: None
     """
-    return 'do some magic!'
-
+    config = rabbitMQ_client.get_configuration()
+    if config is not None:
+        return Response(
+            json.dumps(config),
+            status=200
+        )
+    return Response(
+        status=500
+    )
 
 # {
 #   "threshold": 0,

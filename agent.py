@@ -9,7 +9,6 @@ import time
 client = docker.from_env()
 list = client.containers.list(all=True)
 hostname = socket.gethostname()
-print(hostname)
 threshold = 60.0
 ping_retries = 3
 monitoring_period = 2
@@ -19,7 +18,8 @@ general_topics_list = [
     "set_ping_retries",
     "set_monitoring_period",
     "all_containers_status",
-    "container_list"
+    "container_list",
+    "config"
 ]
 personal_topics_list = [
     "add_container",
@@ -58,13 +58,13 @@ def monitor():
                 print("Ping failed!")
                 print("Restarting container.")
                 cont.restart()
-            elif ploss*100 > threshold:
-                print("Packet Loss: " + str(ploss*100) + " %")
+            elif ploss * 100 > threshold:
+                print("Packet Loss: " + str(ploss * 100) + " %")
                 print("Restarting container.")
                 cont.restart()
             else:
                 print("Healthy container!")
-                print("Packet Loss: " + str(ploss*100) + " %")
+                print("Packet Loss: " + str(ploss * 100) + " %")
         else:
             print(local_name + " is down!")
             cont.restart()
@@ -92,11 +92,27 @@ def listen_on_personal_queue():
     channel.exchange_declare(exchange='topics', exchange_type='topic')
     channel.queue_declare(hostname)
     for topic in personal_topics_list:
-        print(hostname+topic)
-        channel.queue_bind(exchange='topics', queue=hostname, routing_key=hostname+topic)
+        print(hostname + topic)
+        channel.queue_bind(exchange='topics', queue=hostname, routing_key=hostname + topic)
     channel.basic_consume(queue=hostname, on_message_callback=personal_broker_callback, auto_ack=True)
     # new thread because start_consuming() is blocking
     threading.Thread(target=channel.start_consuming).start()
+
+
+def get_configuration(message):
+    print("in config")
+    result = {"token": message,
+              "config": {"threshold": threshold, "ping-retries": ping_retries, "monitoring-period": monitoring_period}}
+    print(str(result))
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
+    channel = connection.channel()
+    channel.exchange_declare(exchange="topics", exchange_type="topic")
+    routing_key = "config_response"
+    message = json.dumps(result).encode()
+    channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
+    connection.close()
+    print("sent")
 
 
 def general_broker_callback(channel, method, properties, body):
@@ -116,6 +132,8 @@ def general_broker_callback(channel, method, properties, body):
         get_all_monitored_containers_status(message)
     elif topic == "container_list":
         get_all_containers(message)
+    elif topic == "config":
+        get_configuration(message)
 
 
 def personal_broker_callback(channel, method, properties, body):
@@ -152,6 +170,7 @@ def get_monitored_container_status(request):
             print(str(message))
             connection.close()
 
+
 def get_all_monitored_containers_status(uuid):
     connection = pika.BlockingConnection(pika.ConnectionParameters(host='172.16.3.170'))
     channel = connection.channel()
@@ -162,6 +181,7 @@ def get_all_monitored_containers_status(uuid):
     channel.basic_publish(exchange="topics", routing_key=routing_key, body=message)
     print(str(message))
     connection.close()
+
 
 def get_all_containers(uuid):
     names = []

@@ -48,7 +48,7 @@ def get_containers_list():  # noqa: E501
         )
     else:
         return Response(
-            result,
+            json.dumps(result),
             status=200
         )
 
