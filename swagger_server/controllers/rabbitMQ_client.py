@@ -6,7 +6,7 @@ import uuid
 import pika as pika
 
 HOSTS = 1
-TIMEOUT = 2
+TIMEOUT = 4
 
 topics_list = [
     "status_response",
@@ -26,15 +26,19 @@ def broker_callback(channel, method, properties, body):
             uuid = response["token"]
             with containers_list_responses_lock:
                 if "containers" in response and uuid in containers_list_responses:
-                    containers_list_responses[uuid].push(response["containers"])
+                    print("Adding containers to dictionary, containers: " + str(response["containers"]), file=sys.stderr)
+                    containers_list_responses[uuid].append(response["containers"])
+                    print("dictionary: " + str(containers_list_responses), file=sys.stderr)
     if topic == "status_response":
         if "token" in response:
             uuid = response["token"]
             with status_responses_lock:
                 if "containers" in response and uuid in status_responses:
-                    status_responses[uuid].push(response["containers"])
+                    values = response["containers"].values()
+                    values_list = list(values)
+                    status_responses[uuid].append(values_list)
                 elif "container" in response and uuid in status_responses:
-                    status_responses[uuid].push(response["container"])
+                    status_responses[uuid].append(response["container"])
     print("Received command on topic "+method.routing_key+", body: " + str(response), file=sys.stderr)
 
 
@@ -87,14 +91,14 @@ def get_container_status(container_name=None, hostname=None):
     if container_name is not None and hostname is not None:
         print(container_name + " " + hostname, file=sys.stderr)
     request_uuid = str(uuid.uuid4())
-    status_responses[uuid] = []
+    status_responses[request_uuid] = []
     if hostname is None:
         print("sending command all containers status", file=sys.stderr)
         send_command("all_containers_status", request_uuid)
         start = time.time()
         while True:
             with status_responses_lock:
-                if len(status_responses[uuid]) == HOSTS:
+                if len(status_responses[request_uuid]) == HOSTS:
                     break
             end = time.time()
             if (end - start) > TIMEOUT:
@@ -102,14 +106,15 @@ def get_container_status(container_name=None, hostname=None):
                 break
             time.sleep(0.1)
         with status_responses_lock:
-            if len(status_responses[uuid]) == 0:
-                del status_responses[uuid]
+            if len(status_responses[request_uuid]) == 0:
+                del status_responses[request_uuid]
                 return None
             else:
                 result = []
-                for x in status_responses[uuid]:
+                for x in status_responses[request_uuid]:
+                    print(str(x), file=sys.stderr)
                     result = result + x
-                del status_responses[uuid]
+                del status_responses[request_uuid]
                 return result
     else:
         if container_name is None:
@@ -121,7 +126,7 @@ def get_container_status(container_name=None, hostname=None):
 
         while True:
             with status_responses_lock:
-                if len(status_responses[uuid]) == 1:
+                if len(status_responses[request_uuid]) == 1:
                     break
             end = time.time()
             if (end - start) > TIMEOUT:
@@ -129,37 +134,43 @@ def get_container_status(container_name=None, hostname=None):
                 break
             time.sleep(0.1)
         with status_responses_lock:
-            if len(status_responses[uuid]) == 0:
-                del status_responses[uuid]
+            if len(status_responses[request_uuid]) == 0:
+                del status_responses[request_uuid]
                 return None
             else:
-                result = status_responses[uuid][0]
-                del status_responses[uuid]
+                result = status_responses[request_uuid][0]
+                del status_responses[request_uuid]
                 return result
 
 
 def get_containers_list():
     request_uuid = str(uuid.uuid4())
-    containers_list_responses[uuid] = []
+    containers_list_responses[request_uuid] = []
     send_command("container_list", request_uuid)
     start = time.time()
+    end = time.time()
     while True:
         with containers_list_responses_lock:
-            if len(containers_list_responses[uuid]) == HOSTS:
+            if len(containers_list_responses[request_uuid]) == HOSTS:
                 break
         end = time.time()
         if (end - start) > TIMEOUT:
             break
         time.sleep(0.1)
+    if (end - start) > TIMEOUT:
+        print("timeout scaduto", file=sys.stderr)
     with containers_list_responses_lock:
-        if len(containers_list_responses[uuid]) == 0:
-            del containers_list_responses[uuid]
+        print("dictionary: " + str(containers_list_responses), file=sys.stderr)
+        print("len: " + str(len(containers_list_responses)), file=sys.stderr)
+        if len(containers_list_responses[request_uuid]) == 0:
+            del containers_list_responses[request_uuid]
             return None
         else:
             result = []
-            for x in containers_list_responses[uuid]:
+            for x in containers_list_responses[request_uuid]:
                 result = result + x
-            del containers_list_responses[uuid]
+            del containers_list_responses[request_uuid]
+            print("result " + str(result), file=sys.stderr)
             return result
 
 

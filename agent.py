@@ -129,7 +129,7 @@ def personal_broker_callback(channel, method, properties, body):
         add_container(message)
     elif topic == hostname + "remove_container":
         remove_container(message)
-    elif topic == "container_status":
+    elif topic == hostname + "container_status":
         get_monitored_container_status(message)
 
 
@@ -137,7 +137,7 @@ def get_monitored_container_status(request):
     if "token" in request:
         uuid = request["token"]
         if "container" in request:
-            container_name = request["container"]
+            container_name = hostname + "-" + request["container"]
             # broker ip address --> node manager
             connection = pika.BlockingConnection(pika.ConnectionParameters(host='172.16.3.170'))
             channel = connection.channel()

@@ -1,3 +1,4 @@
+import json
 import sys
 
 import connexion
@@ -67,7 +68,7 @@ def get_monitored_containers_status():  # noqa: E501
         )
     else:
         return Response(
-            result,
+            json.dumps(result),
             status=200
         )
 
@@ -96,7 +97,7 @@ def get_monitored_container_status(name):  # noqa: E501
             status=404
         )
     return Response(
-        result,
+        json.dumps(result),
         status=200
     )
 
