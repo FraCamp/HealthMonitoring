@@ -1,5 +1,5 @@
 import json
-import socket
+import os
 import docker
 import pika as pika
 from pythonping import ping
@@ -8,7 +8,7 @@ import time
 
 client = docker.from_env()
 list = client.containers.list(all=True)
-hostname = socket.gethostname()
+hostname = os.environ["HOSTNAME"]
 threshold = 60.0
 ping_retries = 3
 monitoring_period = 2
@@ -102,7 +102,7 @@ def listen_on_personal_queue():
 def get_configuration(message):
     print("in config")
     result = {"token": message,
-              "config": {"threshold": threshold, "ping-retries": ping_retries, "monitoring-period": monitoring_period}}
+              "config": {"name": hostname, "threshold": threshold, "ping-retries": ping_retries, "monitoring-period": monitoring_period}}
     print(str(result))
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(host='172.16.3.170'))  # broker ip address --> node manager
