@@ -1,23 +1,25 @@
 import json
 
 import connexion
-import swagger_server.controllers.rabbitMQ_client as rabbitMQ_client
-import six
+import swagger_server.controllers.rabbitMQ_manager as rabbitMQ_manager
 from flask import Response
 
 from swagger_server.models.config import Config  # noqa: E501
-from swagger_server import util
 
 
-def get_configuration():  # noqa: E501
-    """get_configuration
-
-     # noqa: E501
-
-
-    :rtype: None
+def get_configuration() -> Response:  # noqa: E501
     """
-    config = rabbitMQ_client.get_configuration()
+    REST controller method that is triggered by a request for the agent's configurations.
+    It returns to the client a list of dictionaries with the following form:
+
+    {
+        "hostname": "name"
+        "threshold": 50.0,
+        "ping-retries": 2,
+        "monitoring-period": 4
+    }
+    """
+    config = rabbitMQ_manager.get_configuration()
     if config is not None:
         return Response(
             json.dumps(config),
@@ -27,33 +29,34 @@ def get_configuration():  # noqa: E501
         status=500
     )
 
-# {
-#   "threshold": 0,
-#   "ping-retries": 0,
-#   "monitoring-period": 0
-# }
 
-def update_configuration(body):  # noqa: E501
-    """update_configuration
+def update_configuration(body) -> Response:  # noqa: E501
+    """
+    REST controller method that is triggered by a request to update the agent's configurations.
+    It accepts as parameter a dictionary with the following form:
 
-     # noqa: E501
+    {
+        "threshold": 50.0,
+        "ping-retries": 2,
+        "monitoring-period": 4
+    }
 
-    :param body: 
-    :type body: dict | bytes
-
-    :rtype: None
+    None of the dictionary entries is mandatory.
     """
     if connexion.request.is_json:
         body = Config.from_dict(connexion.request.get_json())  # noqa: E501
         threshold = body.threshold
         ping_retries = body.ping_retries
         monitoring_period = body.monitoring_period
+
+        # we send to the rabbitMQ manager a request for each parameter that must be changed so that
+        # the request will be forwarded to the whole cluster.
         if threshold is not None:
-            rabbitMQ_client.set_threshold(threshold)
+            rabbitMQ_manager.set_threshold(threshold)
         if ping_retries is not None:
-            rabbitMQ_client.set_ping_retries(ping_retries)
+            rabbitMQ_manager.set_ping_retries(ping_retries)
         if monitoring_period is not None:
-            rabbitMQ_client.set_monitoring_period(monitoring_period)
+            rabbitMQ_manager.set_monitoring_period(monitoring_period)
     return Response(
         status=200
     )

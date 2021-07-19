@@ -1,33 +1,29 @@
 import json
-import sys
 
-import connexion
-import six
 from flask import Response
-import swagger_server.controllers.rabbitMQ_client as rabbitMQ_client
+import swagger_server.controllers.rabbitMQ_manager as rabbitMQ_manager
 
 from swagger_server.models.container import Container  # noqa: E501
-from swagger_server import util
 
 
 def add_container(name):  # noqa: E501
-    """add_container
-
-     # noqa: E501
-
-    :param name: 
-    :type name: str
-
-    :rtype: None
     """
-    splitted = name.split("-", 2)
-    if len(splitted) != 2:
+    REST controller method that is triggered by a request to add a container.
+    It forwards the request to the cluster.
+
+    :param name: the name of the container to add, containing the hostname.
+    :type name: str
+    """
+    # We check if the name is in the correct format: it must contain the hostname, followed by
+    # a dash (-) followed by the container name.
+    split = name.split("-", 2)
+    if len(split) != 2:
         return Response(
             status=400
         )
-    hostname = splitted[0]
-    container = splitted[1]
-    rabbitMQ_client.add_container(container, hostname)
+    hostname = split[0]
+    container = split[1]
+    rabbitMQ_manager.add_container(container, hostname)
     return Response(
         status=200
     )
@@ -36,12 +32,12 @@ def add_container(name):  # noqa: E501
 def get_containers_list():  # noqa: E501
     """get_containers_list
 
-     # noqa: E501
+    REST controller method that is triggered by a request for the list of containers.
+    It forwards the request to the cluster and returns the result.
 
-
-    :rtype: List[Container]
+    :rtype: List[str]
     """
-    result = rabbitMQ_client.get_containers_list()
+    result = rabbitMQ_manager.get_containers_list()
     if result is None:
         return Response(
             status=500
@@ -54,14 +50,14 @@ def get_containers_list():  # noqa: E501
 
 
 def get_monitored_containers_status():  # noqa: E501
-    """get_monitored_containers_status
+    """
 
-     # noqa: E501
-
+    REST controller method that is triggered by a request for the status of all containers.
+    It forwards the request to the cluster and returns the result.
 
     :rtype: List[Container]
     """
-    result = rabbitMQ_client.get_container_status()
+    result = rabbitMQ_manager.get_container_status()
     if result is None:
         return Response(
             status=500
@@ -72,26 +68,29 @@ def get_monitored_containers_status():  # noqa: E501
             status=200
         )
 
+
 def get_monitored_container_status(name):  # noqa: E501
     """get_monitored_container_status
 
-     # noqa: E501
+    REST controller method that is triggered by a request for the status of one container.
+    It forwards the request to the cluster and returns the result.
 
-    :param name:
+    :param name: the name of the container of interest
     :type name: str
 
     :rtype: Container
     """
-    print(name, file=sys.stderr)
-    splitted = name.split("-", 2)
-    if len(splitted) != 2:
+    # We check if the name is in the correct format: it must contain the hostname, followed by
+    # a dash (-) followed by the container name.
+    split = name.split("-", 2)
+    if len(split) != 2:
         return Response(
             status=400
         )
-    hostname = splitted[0]
-    container = splitted[1]
-    print(hostname + " " + container, file=sys.stderr)
-    result = rabbitMQ_client.get_container_status(container, hostname)
+    hostname = split[0]
+    container = split[1]
+
+    result = rabbitMQ_manager.get_container_status(container, hostname)
     if result is None:
         return Response(
             status=404
@@ -101,24 +100,26 @@ def get_monitored_container_status(name):  # noqa: E501
         status=200
     )
 
+
 def remove_container(name):  # noqa: E501
-    """remove_container
-
-     # noqa: E501
-
-    :param name: 
-    :type name: str
-
-    :rtype: None
     """
-    splitted = name.split("-", 2)
-    if len(splitted) != 2:
+    REST controller method that is triggered by a request to remove a container.
+    It forwards the request to the cluster.
+
+    :param name: the name of the container to remove, containing the hostname.
+    :type name: str
+    """
+    # We check if the name is in the correct format: it must contain the hostname, followed by
+    # a dash (-) followed by the container name.
+    split = name.split("-", 2)
+    if len(split) != 2:
         return Response(
             status=400
         )
-    hostname = splitted[0]
-    container = splitted[1]
-    rabbitMQ_client.remove_container(container, hostname)
+    hostname = split[0]
+    container = split[1]
+
+    rabbitMQ_manager.remove_container(container, hostname)
     return Response(
         status=200
     )
