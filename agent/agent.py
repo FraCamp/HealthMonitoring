@@ -88,7 +88,7 @@ def monitor() -> None:
             # operation, we exploited the pythonping module.
             pres = ping(p_address, verbose=False, count=ping_retries)
             ploss = pres.packet_loss
-            monitored_containers_status[name]["packet_loss"] = ploss
+            monitored_containers_status[name]["packet_loss"] = ploss * 100
 
             # if the ping did not succeed we restart the container
             if not pres.success():
@@ -145,7 +145,7 @@ def listen_on_queue(broker: str, topics: List[str], queue: str = '', callback: A
     channel.basic_consume(queue=queue, on_message_callback=callback, auto_ack=True)
 
     # We start listening on the queue in a new thread, because start_consuming() is
-    # a blocking function
+    # a blocking function.
     threading.Thread(target=channel.start_consuming).start()
 
 

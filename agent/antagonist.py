@@ -38,7 +38,7 @@ def change_loss() -> None:
 
     # We generate a random number between 10 and 80 that will be the next
     # value for the simulated packet loss
-    num = random.randint(10, 80)
+    num = random.randint(10, 40)
     loss = str(num) + "%"
     print("Packet loss changed to " + loss)
 

@@ -3,8 +3,6 @@ import json
 from flask import Response
 import swagger_server.controllers.rabbitMQ_manager as rabbitMQ_manager
 
-from swagger_server.models.container import Container  # noqa: E501
-
 
 def add_container(name):  # noqa: E501
     """

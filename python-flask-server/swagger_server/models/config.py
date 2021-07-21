@@ -22,19 +22,19 @@ class Config(Model):
         :type threshold: float
         :param ping_retries: The ping_retries of this Config.  # noqa: E501
         :type ping_retries: int
-        :param monitoring_period: The monitoring_period of this Config.  # noqa: E501
+        :param monitoring_period: The attack_interval of this Config.  # noqa: E501
         :type monitoring_period: int
         """
         self.swagger_types = {
             'threshold': float,
             'ping_retries': int,
-            'monitoring_period': int
+            'attack_interval': int
         }
 
         self.attribute_map = {
             'threshold': 'threshold',
             'ping_retries': 'ping-retries',
-            'monitoring_period': 'monitoring-period'
+            'attack_interval': 'monitoring-period'
         }
 
         self._threshold = threshold
@@ -96,20 +96,20 @@ class Config(Model):
 
     @property
     def monitoring_period(self) -> int:
-        """Gets the monitoring_period of this Config.
+        """Gets the attack_interval of this Config.
 
 
-        :return: The monitoring_period of this Config.
+        :return: The attack_interval of this Config.
         :rtype: int
         """
         return self._monitoring_period
 
     @monitoring_period.setter
     def monitoring_period(self, monitoring_period: int):
-        """Sets the monitoring_period of this Config.
+        """Sets the attack_interval of this Config.
 
 
-        :param monitoring_period: The monitoring_period of this Config.
+        :param monitoring_period: The attack_interval of this Config.
         :type monitoring_period: int
         """
 

@@ -73,7 +73,7 @@ def parse_args():
                         dest="verbose",
                         help="set verbose mode. If set to 1, show opcode. "
                         "If set to 2, enable to trace  websocket module")
-    parser.add_argument("-n", "--nocert", action='store_true',
+    parser.add_argument("-new_ping_retries", "--nocert", action='store_true',
                         help="Ignore invalid SSL cert")
     parser.add_argument("-r", "--raw", action="store_true",
                         help="raw output")
@@ -110,7 +110,7 @@ class InteractiveConsole(RawInput, code.InteractiveConsole):
 
     def write(self, data):
         sys.stdout.write("\033[2K\033[E")
-        # sys.stdout.write("\n")
+        # sys.stdout.write("\new_ping_retries")
         sys.stdout.write("\033[34m< " + data + "\033[39m")
         sys.stdout.write("\n> ")
         sys.stdout.flush()

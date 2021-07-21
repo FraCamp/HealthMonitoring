@@ -3,5 +3,3 @@
 # flake8: noqa
 from __future__ import absolute_import
 # import models into model package
-from swagger_server.models.config import Config
-from swagger_server.models.container import Container
